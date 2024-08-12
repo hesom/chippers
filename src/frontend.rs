@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use pixels::{Pixels, SurfaceTexture};
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
@@ -16,6 +18,7 @@ pub struct App<'a> {
     pub pixels: Option<Pixels>,
     pub chip8: &'a mut Chip8,
     scale: u32,
+    last_frame_instant: Instant,
 }
 
 impl<'a> App<'a> {
@@ -25,6 +28,7 @@ impl<'a> App<'a> {
             pixels: None,
             chip8,
             scale,
+            last_frame_instant: Instant::now(),
         }
     }
 }
@@ -69,7 +73,11 @@ impl<'a> ApplicationHandler for App<'a> {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
-                self.chip8.cycle();
+                let time_since_last_frame = self.last_frame_instant.elapsed();
+                if time_since_last_frame.as_secs_f64() as f64 > 1.0 / 500.0 {
+                    self.chip8.cycle();
+                    self.last_frame_instant = Instant::now();
+                }
                 if self.chip8.draw_flag {
                     self.chip8.draw_flag = false;
 

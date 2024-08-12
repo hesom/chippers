@@ -1,4 +1,4 @@
-use std::{fs, path::Path};
+use std::{fs, path::Path, time::Instant};
 
 use rand::Rng;
 
@@ -14,6 +14,7 @@ pub struct Chip8 {
     sound_timer: u8,
     pub key: [u8; 16],
     pub draw_flag: bool,
+    last_timer: Instant,
 }
 
 impl Chip8 {
@@ -30,6 +31,7 @@ impl Chip8 {
             sound_timer: 0,
             key: [0; 16],
             draw_flag: false,
+            last_timer: Instant::now(),
         }
     }
 
@@ -301,11 +303,14 @@ impl Chip8 {
             _ => (),
         }
 
-        if self.delay_timer > 0 {
-            self.delay_timer -= 1;
-        }
-        if self.sound_timer > 0 {
-            self.sound_timer -= 1;
+        if self.last_timer.elapsed().as_secs_f64() > 1.0 / 60.0 {
+            if self.delay_timer > 0 {
+                self.delay_timer -= 1;
+            }
+            if self.sound_timer > 0 {
+                self.sound_timer -= 1;
+            }
+            self.last_timer = Instant::now();
         }
     }
 
