@@ -50,7 +50,7 @@ impl<'a> App<'a> {
             KeyCode::KeyX => Some(0x0),
             KeyCode::KeyC => Some(0xB),
             KeyCode::KeyV => Some(0xF),
-            _ => None
+            _ => None,
         }
     }
 }
@@ -125,30 +125,38 @@ impl<'a> ApplicationHandler for App<'a> {
             }
             WindowEvent::KeyboardInput {
                 event:
-                    KeyEvent { physical_key, state, ..},
+                    KeyEvent {
+                        physical_key,
+                        state,
+                        ..
+                    },
                 ..
-            } => {
-                match physical_key {
-                    PhysicalKey::Code(KeyCode::Escape) if state == ElementState::Pressed => {
-                        event_loop.exit();
-                    }
-                    PhysicalKey::Code(code) => {
-                        if let Some(key) = self.keymap(code) {
-                            match state {
-                                ElementState::Pressed => {
-                                    self.chip8.key[key as usize] = 1;
-                                    if self.chip8.await_key_flag {
-                                        self.chip8.await_key_pressed = key;
+            } => match physical_key {
+                PhysicalKey::Code(KeyCode::Escape) if state == ElementState::Pressed => {
+                    event_loop.exit();
+                }
+                PhysicalKey::Code(code) => {
+                    if let Some(key) = self.keymap(code) {
+                        match state {
+                            ElementState::Pressed => {
+                                self.chip8.key[key as usize] = 1;
+                                if self.chip8.await_key_flag {
+                                    self.chip8.await_key_pressed = key;
+                                }
+                            }
+                            ElementState::Released => {
+                                self.chip8.key[key as usize] = 0;
+                                if self.chip8.await_key_flag {
+                                    if key == self.chip8.await_key_pressed {
                                         self.chip8.await_key_notify = true;
                                     }
-                                },
-                                ElementState::Released => self.chip8.key[key as usize] = 0,
+                                }
                             }
-                        };
-                    },
-                    _ => (),
+                        }
+                    };
                 }
-            }
+                _ => (),
+            },
             _ => (),
         }
     }

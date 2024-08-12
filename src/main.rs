@@ -3,7 +3,7 @@ use winit::event_loop::{ControlFlow, EventLoop};
 
 fn main() {
     let mut chip8 = Chip8::new();
-    chip8.load_rom("./roms/5-quirks.ch8");
+    chip8.load_rom("./roms/space_invaders.ch8");
 
     let event_loop = EventLoop::new().unwrap();
     event_loop.set_control_flow(ControlFlow::Poll);

@@ -52,6 +52,16 @@ impl Chip8 {
             return;
         }
 
+        if self.last_timer.elapsed().as_secs_f64() > 1.0 / 60.0 {
+            if self.delay_timer > 0 {
+                self.delay_timer -= 1;
+            }
+            if self.sound_timer > 0 {
+                self.sound_timer -= 1;
+            }
+            self.last_timer = Instant::now();
+        }
+
         match opcode & 0xF000 {
             0x0000 => {
                 match opcode & 0x00FF {
@@ -326,15 +336,6 @@ impl Chip8 {
             _ => (),
         }
 
-        if self.last_timer.elapsed().as_secs_f64() > 1.0 / 60.0 {
-            if self.delay_timer > 0 {
-                self.delay_timer -= 1;
-            }
-            if self.sound_timer > 0 {
-                self.sound_timer -= 1;
-            }
-            self.last_timer = Instant::now();
-        }
     }
 
     pub fn load_raw(&mut self, rom: &Vec<u16>) {
