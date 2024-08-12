@@ -14,6 +14,9 @@ pub struct Chip8 {
     sound_timer: u8,
     pub key: [u8; 16],
     pub draw_flag: bool,
+    pub await_key_flag: bool,
+    pub await_key_notify: bool,
+    pub await_key_pressed: u8,
     last_timer: Instant,
 }
 
@@ -31,11 +34,18 @@ impl Chip8 {
             sound_timer: 0,
             key: [0; 16],
             draw_flag: false,
+            await_key_flag: false,
+            await_key_notify: false,
+            await_key_pressed: 0x0,
             last_timer: Instant::now(),
         }
     }
 
     pub fn cycle(&mut self) {
+        if self.pc >= 4096 {
+            return;
+        }
+
         let opcode = (self.memory.read(self.pc) as u16) << 8 | self.memory.read(self.pc + 1) as u16;
 
         if opcode == 0x0000 {
@@ -56,7 +66,7 @@ impl Chip8 {
                         self.sp -= 1;
                         self.pc = self.stack[self.sp as usize];
                     }
-                    _ => panic!("Not implemented"),
+                    _ => panic!("Not implemented: {:#06x}", opcode),
                 }
             }
             0x1000 => {
@@ -122,14 +132,17 @@ impl Chip8 {
                     }
                     0x0001 => {
                         self.v[x as usize] |= self.v[y as usize];
+                        self.v[0xF] = 0;
                         self.pc += 2;
                     }
                     0x0002 => {
                         self.v[x as usize] &= self.v[y as usize];
+                        self.v[0xF] = 0;
                         self.pc += 2;
                     }
                     0x0003 => {
                         self.v[x as usize] ^= self.v[y as usize];
+                        self.v[0xF] = 0;
                         self.pc += 2;
                     }
                     0x0004 => {
@@ -194,7 +207,7 @@ impl Chip8 {
             }
             0xB000 => {
                 // Jumps to address of NNN plus V0
-                self.pc = opcode & 0x0FFF + self.v[0x0] as u16;
+                self.pc = (opcode & 0x0FFF).wrapping_add(self.v[0x0] as u16);
             }
             0xC000 => {
                 // Random number operation
@@ -218,11 +231,13 @@ impl Chip8 {
                 for y_line in 0..n {
                     let pixel = self.memory.read(self.i + y_line as u16);
                     for x_line in 0..8 {
+                        let x_coord = (x + x_line) as usize % 64;
+                        let y_coord = (y + y_line) as usize % 32;
                         if pixel & (0x80 >> x_line) != 0 {
-                            if self.gfx[(x + x_line + ((y + y_line) * 64)) as usize] == 1 {
+                            if self.gfx[x_coord + y_coord * 64] == 1 {
                                 self.v[0xF] = 1;
                             }
-                            self.gfx[(x + x_line + ((y + y_line) * 64)) as usize] ^= 1;
+                            self.gfx[x_coord + y_coord * 64] ^= 1;
                         }
                     }
                 }
@@ -257,9 +272,15 @@ impl Chip8 {
                         self.pc += 2;
                     }
                     0x000A => {
-                        self.v[x as usize] = 1;
-                        self.pc += 2;
-                        panic!("Implement blocking")
+                        if !self.await_key_notify {
+                            self.await_key_flag = true;
+                            return;
+                        }else{
+                            self.v[x as usize] = self.await_key_pressed;
+                            self.pc += 2;
+                            self.await_key_notify = false;
+                            self.await_key_flag = false;
+                        }
                     }
                     0x0015 => {
                         self.delay_timer = self.v[x as usize];
@@ -289,15 +310,17 @@ impl Chip8 {
                         for p in 0..=x {
                             self.memory.write(self.i + p, self.v[p as usize]);
                         }
+                        self.i = x + 1;
                         self.pc += 2;
                     }
                     0x0065 => {
                         for p in 0..=x {
                             self.v[p as usize] = self.memory.read(self.i + p);
                         }
+                        self.i = x+1;
                         self.pc += 2;
                     }
-                    _ => panic!("Not implemented"),
+                    _ => panic!("Not implemented: {:#06x}", opcode),
                 }
             }
             _ => (),

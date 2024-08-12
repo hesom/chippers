@@ -5,7 +5,7 @@ use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, KeyEvent, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
-use winit::keyboard::{Key, NamedKey};
+use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::{Window, WindowId};
 
 use crate::chip8::Chip8;
@@ -29,6 +29,28 @@ impl<'a> App<'a> {
             chip8,
             scale,
             last_frame_instant: Instant::now(),
+        }
+    }
+
+    pub fn keymap(&mut self, code: KeyCode) -> Option<u8> {
+        match code {
+            KeyCode::Digit1 => Some(0x1),
+            KeyCode::Digit2 => Some(0x2),
+            KeyCode::Digit3 => Some(0x3),
+            KeyCode::Digit4 => Some(0xC),
+            KeyCode::KeyQ => Some(0x4),
+            KeyCode::KeyW => Some(0x5),
+            KeyCode::KeyE => Some(0x6),
+            KeyCode::KeyR => Some(0xD),
+            KeyCode::KeyA => Some(0x7),
+            KeyCode::KeyS => Some(0x8),
+            KeyCode::KeyD => Some(0x9),
+            KeyCode::KeyF => Some(0xE),
+            KeyCode::KeyZ => Some(0xA),
+            KeyCode::KeyX => Some(0x0),
+            KeyCode::KeyC => Some(0xB),
+            KeyCode::KeyV => Some(0xF),
+            _ => None
         }
     }
 }
@@ -74,7 +96,7 @@ impl<'a> ApplicationHandler for App<'a> {
             }
             WindowEvent::RedrawRequested => {
                 let time_since_last_frame = self.last_frame_instant.elapsed();
-                if time_since_last_frame.as_secs_f64() as f64 > 1.0 / 500.0 {
+                if time_since_last_frame.as_secs_f64() as f64 > 1.0 / 800.0 {
                     self.chip8.cycle();
                     self.last_frame_instant = Instant::now();
                 }
@@ -103,14 +125,29 @@ impl<'a> ApplicationHandler for App<'a> {
             }
             WindowEvent::KeyboardInput {
                 event:
-                    KeyEvent {
-                        logical_key: Key::Named(NamedKey::Escape),
-                        state: ElementState::Pressed,
-                        ..
-                    },
+                    KeyEvent { physical_key, state, ..},
                 ..
             } => {
-                event_loop.exit();
+                match physical_key {
+                    PhysicalKey::Code(KeyCode::Escape) if state == ElementState::Pressed => {
+                        event_loop.exit();
+                    }
+                    PhysicalKey::Code(code) => {
+                        if let Some(key) = self.keymap(code) {
+                            match state {
+                                ElementState::Pressed => {
+                                    self.chip8.key[key as usize] = 1;
+                                    if self.chip8.await_key_flag {
+                                        self.chip8.await_key_pressed = key;
+                                        self.chip8.await_key_notify = true;
+                                    }
+                                },
+                                ElementState::Released => self.chip8.key[key as usize] = 0,
+                            }
+                        };
+                    },
+                    _ => (),
+                }
             }
             _ => (),
         }
