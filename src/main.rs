@@ -9,6 +9,12 @@ struct Cli {
 
     #[arg(short, long, default_value_t = 16)]
     scale: u32,
+
+    #[arg(short, long, default_value_t = 60)]
+    frames_per_second: u32,
+
+    #[arg(short, long, default_value_t = 800)]
+    cycles_per_second: u32,
 }
 
 fn main() {
@@ -19,7 +25,12 @@ fn main() {
 
     let event_loop = EventLoop::new().unwrap();
     event_loop.set_control_flow(ControlFlow::Poll);
-    let mut app = App::new(&mut chip8, args.scale);
+    let mut app = App::new(
+        &mut chip8,
+        args.scale,
+        args.frames_per_second,
+        args.cycles_per_second,
+    );
 
     event_loop.run_app(&mut app).unwrap();
 }
